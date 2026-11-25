@@ -219,20 +219,36 @@ It runs three sections:
    the first disagreement to a minimal policy set, and prints the deciding
    rule.
 
-Representative output from `--seed 1 --cases 1000`:
+Full output from `--seed 1 --cases 1000`:
 
 ```text
+===============================================================================
 1. SINGLE CASE
+===============================================================================
+policy file: policies/examples/conflict.json
+request: alice / report / read
+policies:
+  allow-alice-read-report: alice / report / read -> ALLOW
+  deny-alice-read-report: alice / report / read -> DENY
+
 reference engine:
   decision: DENY
   matched policy IDs: allow-alice-read-report, deny-alice-read-report
   reason: DENY_OVERRIDE
+
 Engine B:
   decision: DENY
+  matched policy IDs: not exposed (index stores effects only)
   effects found: ALLOW, DENY
+  reason: not exposed (Engine B returns no reason)
+
 Result: AGREE
 
+===============================================================================
 2. SYNTHETIC RUN
+===============================================================================
+seed=1 cases=1000 policies=5 vocabulary=4 conflict_rate=0.25
+engines: authres-reference-engine vs authres-index-engine (Engine B)
 total cases: 1000
 agreements: 1000
 disagreements: 0
@@ -241,11 +257,34 @@ timeouts: 0
 non-decided cases: 0
 conflicting ALLOW/DENY cases: 263
 
+===============================================================================
 3. FAULT DETECTION (INJECTED FAULT - FOR DEMONSTRATION ONLY)
+===============================================================================
+Mutant under test: "ALLOW overrides DENY" (test-only known-fault engine).
+Source: tests/mutants/allow_overrides_deny.py. NOT production code.
+This section deliberately compares against a wrong engine.
+
 cases compared: 1000
 mutant disagreements: 263
+
+First disagreement: case 0 (original policy count: 5)
+Minimal case: non-matching and redundant matching rules removed;
+the same disagreement reproduces.
+
+policies:
+  p3: s1 / r0 / a2 -> ALLOW
+  p4: s1 / r0 / a2 -> DENY
+request: s1 / r0 / a2
 reference: DENY (reason DENY_OVERRIDE)
-mutant: ALLOW
+mutant: ALLOW (reason: not exposed (the mutant returns no reason code))
+
+deciding rule: docs/policy-semantics.md
+  section 6, rule 2 (DENY overrides ALLOW)
+  "If any policy in M has effect DENY, the decision is DENY,
+   even if other matching policies have effect ALLOW."
+  The reference engine follows this rule; the mutant inverts it.
+
+Synthetic data only. Engine B and the mutant are not external engines.
 ```
 
 The demo uses only in-project modules. The mutant is not production code, and
