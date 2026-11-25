@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://authres.invalid/schemas/policy-v1.schema.json",
+  "title": "AuthRes policy document (format version 1)",
+  "description": "Machine-readable form of docs/policy-semantics.md section 2. The Python parser remains normative for behavior the schema cannot express: duplicate JSON keys, duplicate policy ids, and stricter JSON constant handling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "policies"],
+  "properties": {
+    "version": {
+      "const": 1,
+      "description": "Policy format version; must be the integer 1."
+    },
+    "policies": {
+      "type": "array",
+      "description": "May be empty. Order does not affect decisions but is preserved in traces.",
+      "items": {
+        "$ref": "#/$defs/policy"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Non-empty and not whitespace-only. Compared by Unicode code points with no normalization, no case folding, and no trimming. Whitespace inside an identifier is significant. NUL characters are permitted and significant. Lone surrogates are discouraged (see docs/canonical-encoding.md)."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "resource", "action", "effect"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Optional metadata; never affects matching. Must be unique within the document (not expressible in JSON Schema; enforced by the parser)."
+        },
+        "subject": {
+          "$ref": "#/$defs/identifier"
+        },
+        "resource": {
+          "$ref": "#/$defs/identifier"
+        },
+        "action": {
+          "$ref": "#/$defs/identifier"
+        },
+        "effect": {
+          "enum": ["ALLOW", "DENY"],
+          "description": "Exact uppercase strings only."
+        }
+      }
+    }
+  }
+}

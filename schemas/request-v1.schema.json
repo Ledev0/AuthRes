@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://authres.invalid/schemas/request-v1.schema.json",
+  "title": "AuthRes access request (format version 1)",
+  "description": "Machine-readable form of the request document accepted by AccessRequest.from_json. The Python parser remains normative for behavior the schema cannot express: duplicate JSON keys and rejection of NaN/Infinity constants.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject", "resource", "action"],
+  "properties": {
+    "subject": {
+      "$ref": "#/$defs/identifier"
+    },
+    "resource": {
+      "$ref": "#/$defs/identifier"
+    },
+    "action": {
+      "$ref": "#/$defs/identifier"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Non-empty and not whitespace-only. Compared by Unicode code points with no normalization, no case folding, and no trimming. Whitespace inside an identifier is significant. NUL characters are permitted and significant. Lone surrogates are discouraged (see docs/canonical-encoding.md)."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "policies": [
+    {
+      "id": "allow-alice-read-report",
+      "subject": "alice",
+      "resource": "report",
+      "action": "read",
+      "effect": "ALLOW"
+    },
+    {
+      "id": "deny-alice-read-report",
+      "subject": "alice",
+      "resource": "report",
+      "action": "read",
+      "effect": "DENY"
+    }
+  ]
+}

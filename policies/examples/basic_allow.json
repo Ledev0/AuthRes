@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "policies": [
+    {
+      "id": "alice-can-read-report",
+      "subject": "alice",
+      "resource": "report",
+      "action": "read",
+      "effect": "ALLOW"
+    },
+    {
+      "id": "bob-can-write-report",
+      "subject": "bob",
+      "resource": "report",
+      "action": "write",
+      "effect": "ALLOW"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# AuthRes core has no runtime third-party dependencies.
+#
+# Pinned exact versions keep local and CI environments reproducible.
+#  - textual: required only for the optional TUI (python -m authres.tui).
+#  - pytest, hypothesis, jsonschema: development/verification only.
+# Python support: core runs on 3.10+; the full test toolchain requires
+# 3.11+ (hypothesis floor). CI matrix: 3.11-3.15. See README.md.
+pytest==9.2.0
+textual==8.2.8
+hypothesis==6.170.15
+jsonschema==4.26.0
