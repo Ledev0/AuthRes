@@ -181,7 +181,11 @@ class TestEngineOutcomeSerialization:
 
 class TestEngineAdapterProtocol:
     def test_protocol_defines_the_three_stages(self) -> None:
-        names = {member for member in EngineAdapter.__protocol_attrs__}
+        # Python 3.11 has no Protocol.__protocol_attrs__, so inspect the class
+        # namespace directly. The explicit members are declared in the body.
+        names = {
+            name for name in EngineAdapter.__dict__ if not name.startswith("_")
+        }
 
         assert {"engine_id", "engine_version", "compile", "execute", "normalize"} <= names
 
