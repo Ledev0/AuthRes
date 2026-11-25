@@ -1,5 +1,8 @@
 # AuthRes
 
+[![CI](https://github.com/Ledev0/AuthRes/actions/workflows/ci.yml/badge.svg)](https://github.com/Ledev0/AuthRes/actions/workflows/ci.yml)
+[![Python 3.11–3.15](https://img.shields.io/badge/python-3.11%E2%80%933.15-blue)](https://www.python.org/)
+
 AuthRes is a research prototype for studying whether independent
 implementations of the same authorization policy specification return
 consistent ALLOW/DENY decisions for the same policy and request.
@@ -9,6 +12,23 @@ comparison harness**: a seeded synthetic case generator, a second in-project
 engine (Engine B), a neutral decision comparator, and a CLI. It does **not**
 contain external engine integrations or adapters. All comparison data is
 synthetic; no real-world authorization measurement has been made.
+
+## Contents
+
+- [Status](#status)
+- [Requirements](#requirements)
+- [Setup](#setup)
+- [Quick start](#quick-start)
+- [TUI](#tui)
+- [Demo](#demo)
+- [Engine comparison (synthetic)](#engine-comparison-synthetic)
+- [Policy JSON](#policy-json)
+- [Semantics summary](#semantics-summary)
+- [Tests](#tests)
+- [Development conventions](#development-conventions)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Research integrity notes](#research-integrity-notes)
 
 ## Status
 
@@ -26,6 +46,8 @@ synthetic; no real-world authorization measurement has been made.
 - A keyboard-first Textual TUI (`python -m authres.tui`) for browsing
   policies, building requests, running evaluations, and exporting session
   results. The TUI is a separate presentation layer over the same core APIs.
+- A plain-text demo (`demo/run_demo.py`) covering one fixed case, a seeded
+  synthetic run, and detection of a deliberately injected engine fault.
 - Three example policy documents.
 - Automated pytest suite covering the documented semantics, the CLI, a
   hand-authored conformance fixture, the TUI, and property/metamorphic
@@ -92,6 +114,16 @@ python -m pip install -r requirements.txt
 
 `requirements.txt` pins exact versions, so this produces a reproducible
 local environment identical to CI.
+
+Common setup issues:
+
+- `No module named pytest` — the virtual environment is not active, or
+  dependencies were installed into a different interpreter. Activate `.venv`
+  and rerun `python -m pip install -r requirements.txt`.
+- TUI import error mentioning `textual` — install the pinned requirements;
+  Textual is required only for `python -m authres.tui`.
+- Test collection fails on Python 3.10 — the core supports 3.10, but the full
+  test toolchain requires Python 3.11+ (`hypothesis`).
 
 ## Quick start
 
@@ -166,6 +198,59 @@ Notes:
   `PolicySet.to_dict`).
 - The TUI never modifies policy semantics and never runs any external
   authorization engine.
+
+## Demo
+
+A plain-text demonstration exercises the reference engine, the comparison
+harness, and the comparator's fault detection:
+
+```bash
+python demo/run_demo.py --seed 1 --cases 1000
+```
+
+It runs three sections:
+
+1. **Single case** — evaluates `policies/examples/conflict.json` with both
+   engines and prints the reference trace plus Engine B's effect lookup.
+2. **Synthetic run** — generates a seeded corpus and prints agreement, error,
+   timeout, non-decision, and conflict counts.
+3. **Fault detection** — compares the reference engine with the deliberately
+   wrong test-only mutant in `tests/mutants/allow_overrides_deny.py`, reduces
+   the first disagreement to a minimal policy set, and prints the deciding
+   rule.
+
+Representative output from `--seed 1 --cases 1000`:
+
+```text
+1. SINGLE CASE
+reference engine:
+  decision: DENY
+  matched policy IDs: allow-alice-read-report, deny-alice-read-report
+  reason: DENY_OVERRIDE
+Engine B:
+  decision: DENY
+  effects found: ALLOW, DENY
+Result: AGREE
+
+2. SYNTHETIC RUN
+total cases: 1000
+agreements: 1000
+disagreements: 0
+engine errors: 0
+timeouts: 0
+non-decided cases: 0
+conflicting ALLOW/DENY cases: 263
+
+3. FAULT DETECTION (INJECTED FAULT - FOR DEMONSTRATION ONLY)
+cases compared: 1000
+mutant disagreements: 263
+reference: DENY (reason DENY_OVERRIDE)
+mutant: ALLOW
+```
+
+The demo uses only in-project modules. The mutant is not production code, and
+no external engine is executed. All generated cases and decisions are
+synthetic.
 
 ## Engine comparison (synthetic)
 
@@ -286,6 +371,13 @@ Run the complete suite from the project root:
 python -m pytest
 ```
 
+Run one test file or one focused test while iterating:
+
+```bash
+python -m pytest tests/test_reference_engine.py -q
+python -m pytest tests/test_reference_engine.py::test_deny_overrides_allow_regardless_of_policy_order -q
+```
+
 The tests cover matching ALLOW and DENY rules, unmatched requests, conflicting
 rules in both orders, multiple matches, empty policy sets, invalid policies,
 missing request attributes, strict JSON behavior on both the policy and
@@ -298,10 +390,10 @@ agreement/error/timeout/non-decision separation, deterministic generation and
 schema validity, corpus-level counts, CLI artifacts, and a test-only mutant
 that the comparator must detect.
 
-At the time of writing the full suite result was:
+On the development machine (Python 3.15.2, pytest 9.2.0):
 
 ```text
-430 passed in 66.60s (0:01:06)
+434 passed in 80.61s (0:01:20)
 ```
 
 Tests verify conformance to the project's documented semantics and the
@@ -309,13 +401,38 @@ comparison machinery. They do not prove agreement with any external
 implementation, and they do not make the reference semantics independently
 validated.
 
+## Development conventions
+
+- Run commands from the repository root. There is no `pyproject.toml` or
+  installable package; `pytest.ini` supplies `pythonpath = .`.
+- The AuthRes core uses only the Python standard library. Keep third-party
+  imports out of `authres/core`, `authres/engines`, and `authres/compare`;
+  `textual` is confined to the TUI, and test dependencies stay in
+  `requirements.txt`.
+- Dependency direction is enforced by AST tests: `authres/engines` may depend
+  only on `authres.core.models`, `authres.core.policy`, and itself; it must not
+  import the reference engine. The reference engine must not import
+  `authres.engines`. TUI screens, widgets, and `app.py` must not import the
+  reference engine; only `authres/tui/services` and
+  `authres/compare/reference_adapter.py` may.
+- Policy format version 1 is normative. Changing matching, decision,
+  canonical encoding, or hashing requires a new format version plus matching
+  documentation, schema, and test updates.
+- JSON parsing is strict and shared through `authres/core/jsonio.py`. Do not
+  add a second parser or silently ignore unknown fields.
+- There is no lint, formatter, or typecheck configuration; the pytest suite is
+  the verification gate. CI runs it on Python 3.11–3.15.
+- Keep README and documentation claims within the evidence boundaries
+  described in [`docs/semantic-validation.md`](docs/semantic-validation.md).
+
 ## Project structure
 
 ```text
-authres/
+.
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+├── .gitignore
 ├── authres/
 │   ├── __init__.py
 │   ├── compare/
@@ -346,6 +463,8 @@ authres/
 │       ├── screens/
 │       ├── services/
 │       └── widgets/
+├── demo/
+│   └── run_demo.py
 ├── docs/
 │   ├── architecture.md
 │   ├── canonical-encoding.md
@@ -370,6 +489,7 @@ authres/
 │   ├── test_compare_cli.py
 │   ├── test_comparator.py
 │   ├── test_conflicts.py
+│   ├── test_demo.py
 │   ├── test_engine_contract.py
 │   ├── test_generator.py
 │   ├── test_index_engine.py
@@ -386,11 +506,14 @@ authres/
 │   ├── test_tui_screens.py
 │   ├── test_tui_services.py
 │   └── tui_support.py
+├── AGENTS.md
 ├── main.py
 ├── pytest.ini
-├── requirements.txt
-└── README.md
+├── README.md
+└── requirements.txt
 ```
+
+Generated comparison artifacts are written to `runs/` and are gitignored.
 
 ## Documentation
 
@@ -399,6 +522,8 @@ authres/
 - [`docs/canonical-encoding.md`](docs/canonical-encoding.md) — canonical
   serialization, identity hashing, Unicode/NUL/equality rules, and the
   JSON Schemas' scope (`schemas/`).
+- [`docs/architecture.md`](docs/architecture.md) — component overview, module
+  responsibilities, dependency direction, and test strategy.
 - [`docs/semantic-validation.md`](docs/semantic-validation.md) — evidence
   ladder separating specification, reference, and adapter claims; the
   independent review/reimplementation process; and assumptions not yet
@@ -408,6 +533,8 @@ authres/
   protocol. No external adapter is implemented and no external-engine
   compatibility is established. Engine B is an in-project implementation,
   not an external adapter.
+- [`AGENTS.md`](AGENTS.md) — repository-specific instructions for AI coding
+  agents, including commands, dependency boundaries, and claim limits.
 
 ## Research integrity notes
 
